@@ -1,0 +1,51 @@
+[project]
+name = "mcp-mastery"
+version = "0.1.0"
+description = "Learning the FastMCP Mastery"
+readme = "README.md"
+authors = [
+    { name = "ahmadreza", email = "ahmadrezabaqerzadeh@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastmcp>=4.1.6",
+]
+license = "MIT"
+license-files = ["LICENSE"]
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.1.post1",
+]
+lint = [
+    "ruff>=0.17.2",
+]
+
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # isort: import sorting
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+asyncio_mode = "auto"
