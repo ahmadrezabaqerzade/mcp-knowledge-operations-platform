@@ -1,5 +1,6 @@
 from fastmcp import FastMCP
 
+from mcp_mastery.knowledge_server.prompts import research
 from mcp_mastery.knowledge_server.resources import knowledge
 from mcp_mastery.knowledge_server.tools import search
 
@@ -7,6 +8,7 @@ mcp = FastMCP(name="Knowledge Server")
 
 search.register(mcp)
 knowledge.register(mcp)
+research.register(mcp)
 
 
 def main() -> None:
