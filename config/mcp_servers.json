@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "knowledge": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "mcp_mastery.knowledge_server.server"
+      ]
+    },
+    "operations": {
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "mcp_mastery.operations_server.server"
+      ]
+    }
+  }
+}
