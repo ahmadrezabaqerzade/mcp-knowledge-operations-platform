@@ -561,6 +561,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
     { name = "numpy" },
+    { name = "pydantic" },
 ]
 
 [package.dev-dependencies]
@@ -576,6 +577,7 @@ lint = [
 requires-dist = [
     { name = "fastmcp", specifier = ">=4.1.6" },
     { name = "numpy", specifier = ">=2.5.4" },
+    { name = "pydantic", specifier = ">=2.14.2" },
 ]
 
 [package.metadata.requires-dev]
