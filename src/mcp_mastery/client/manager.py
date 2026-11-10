@@ -33,7 +33,11 @@ class MCPConnectionManager:
                         if server_config.cwd is not None
                         else None
                     ),
-                    keep_alive=server_config.keep_alive,
+                    keep_alive=(
+                        server_config.keep_alive
+                        if server_config.keep_alive is not None
+                        else False
+                    ),
                 )
 
                 client = Client(transport)
