@@ -3,7 +3,11 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from mcp_mastery.client.config import MCPClientConfig, MCPServerConfig
+from mcp_mastery.client.config import (
+    HttpServerConfig,
+    MCPClientConfig,
+    StdioServerConfig,
+)
 from mcp_mastery.client.manager import MCPConnectionManager
 
 
@@ -36,11 +40,13 @@ def create_config() -> MCPClientConfig:
 
     return MCPClientConfig(
         mcp_servers={
-            "knowledge": MCPServerConfig(
+            "knowledge": StdioServerConfig(
+                transport="stdio",
                 command="uv",
                 args=["run", "python", "-m", "knowledge.server"],
             ),
-            "operations": MCPServerConfig(
+            "operations": StdioServerConfig(
+                transport="stdio",
                 command="uv",
                 args=["run", "python", "-m", "operations.server"],
             ),
@@ -168,7 +174,7 @@ class TestMCPConnectionManager:
 
         config = MCPClientConfig(
             mcp_servers={
-                "knowledge": MCPServerConfig(command="uv"),
+                "knowledge": StdioServerConfig(transport="stdio", command="uv"),
             }
         )
 
@@ -200,7 +206,7 @@ class TestMCPConnectionManager:
 
         config = MCPClientConfig(
             mcp_servers={
-                "knowledge": MCPServerConfig(command="uv"),
+                "knowledge": StdioServerConfig(transport="stdio", command="uv"),
             }
         )
 
@@ -270,7 +276,8 @@ class TestMCPConnectionManager:
 
         config = MCPClientConfig(
             mcp_servers={
-                "knowledge": MCPServerConfig(
+                "knowledge": StdioServerConfig(
+                    transport="stdio",
                     command="uv",
                     args=["run", "python"],
                     env={"APP_ENV": "test"},
@@ -292,4 +299,37 @@ class TestMCPConnectionManager:
             keep_alive=True,
         )
 
+        await manager.disconnect()
+
+    @pytest.mark.asyncio
+    async def test_http_transport_receives_configured_url(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        client = FakeClient()
+        transport_factory = MagicMock(return_value=object())
+
+        monkeypatch.setattr(
+            "mcp_mastery.client.manager.Client",
+            MagicMock(return_value=client),
+        )
+
+        monkeypatch.setattr(
+            "mcp_mastery.client.manager.StreamableHttpTransport",
+            transport_factory,
+        )
+
+        config = MCPClientConfig(
+            mcp_servers={
+                "knowledge": HttpServerConfig(
+                    transport="http",
+                    url="http://127.0.0.1:8001/mcp",
+                ),
+            }
+        )
+
+        manager = MCPConnectionManager(config)
+
+        await manager.connect()
+
+        transport_factory.assert_called_once_with(url="http://127.0.0.1:8001/mcp")
         await manager.disconnect()

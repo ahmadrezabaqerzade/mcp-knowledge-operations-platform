@@ -1,14 +1,19 @@
 import pytest
 from pydantic import ValidationError
 
-from mcp_mastery.client.config import MCPClientConfig, MCPServerConfig
+from mcp_mastery.client.config import (
+    HttpServerConfig,
+    MCPClientConfig,
+    StdioServerConfig,
+)
 
 
 class TestMCPServerConfig:
     """Tests for MCP server configuration."""
 
     def test_valid_server_config(self) -> None:
-        config = MCPServerConfig(
+        config = StdioServerConfig(
+            transport="stdio",
             command="uv",
             args=["run", "python", "-m", "mcp_mastery.server"],
             env={"APP_ENV": "test"},
@@ -28,7 +33,7 @@ class TestMCPServerConfig:
         assert config.keep_alive is True
 
     def test_default_values(self) -> None:
-        config = MCPServerConfig(command="uv")
+        config = StdioServerConfig(transport="stdio", command="uv")
 
         assert config.args == []
         assert config.env is None
@@ -44,7 +49,7 @@ class TestMCPServerConfig:
     )
     def test_invalid_command(self, command: str) -> None:
         with pytest.raises(ValidationError):
-            MCPServerConfig(command=command)
+            StdioServerConfig(transport="stdio", command=command)
 
     @pytest.mark.parametrize(
         "args",
@@ -57,8 +62,9 @@ class TestMCPServerConfig:
     )
     def test_invalid_args(self, args: list[str] | str) -> None:
         with pytest.raises(ValidationError):
-            MCPServerConfig.model_validate(
+            StdioServerConfig.model_validate(
                 {
+                    "transport": "stdio",
                     "command": "uv",
                     "args": args,
                 }
@@ -74,8 +80,9 @@ class TestMCPServerConfig:
     )
     def test_invalid_env(self, env: dict[str, str] | str) -> None:
         with pytest.raises(ValidationError):
-            MCPServerConfig.model_validate(
+            StdioServerConfig.model_validate(
                 {
+                    "transport": "stdio",
                     "command": "uv",
                     "env": env,
                 }
@@ -83,8 +90,9 @@ class TestMCPServerConfig:
 
     def test_rejects_extra_fields(self) -> None:
         with pytest.raises(ValidationError):
-            MCPServerConfig.model_validate(
+            StdioServerConfig.model_validate(
                 {
+                    "transport": "stdio",
                     "command": "uv",
                     "unknown": "value",
                 }
@@ -99,6 +107,7 @@ class TestMCPClientConfig:
             {
                 "mcpServers": {
                     "knowledge": {
+                        "transport": "stdio",
                         "command": "uv",
                         "args": ["run", "python"],
                     }
@@ -109,12 +118,49 @@ class TestMCPClientConfig:
         assert len(config.mcp_servers) == 1
         assert config.mcp_servers["knowledge"].command == "uv"
 
+    def test_valid_http_server(self) -> None:
+        config = MCPClientConfig.model_validate(
+            {
+                "mcpServers": {
+                    "knowledge": {
+                        "transport": "http",
+                        "url": "http://127.0.0.1:8001/mcp",
+                    }
+                }
+            }
+        )
+
+        server = config.mcp_servers["knowledge"]
+
+        assert isinstance(server, HttpServerConfig)
+        assert str(server.url) == "http://127.0.0.1:8001/mcp"
+
+    def test_valid_mixed_transports(self) -> None:
+        config = MCPClientConfig.model_validate(
+            {
+                "mcpServers": {
+                    "knowledge": {
+                        "transport": "http",
+                        "url": "http://127.0.0.1:8001/mcp",
+                    },
+                    "operations": {
+                        "transport": "stdio",
+                        "command": "uv",
+                        "args": ["run", "python"],
+                    },
+                }
+            }
+        )
+
+        assert isinstance(config.mcp_servers["knowledge"], HttpServerConfig)
+        assert isinstance(config.mcp_servers["operations"], StdioServerConfig)
+
     def test_valid_multiple_servers(self) -> None:
         config = MCPClientConfig.model_validate(
             {
                 "mcpServers": {
-                    "knowledge": {"command": "uv"},
-                    "operations": {"command": "python"},
+                    "knowledge": {"transport": "stdio", "command": "uv"},
+                    "operations": {"transport": "stdio", "command": "python"},
                 }
             }
         )
@@ -137,7 +183,7 @@ class TestMCPClientConfig:
             MCPClientConfig.model_validate(
                 {
                     "mcpServers": {
-                        server_name: {"command": "uv"},
+                        server_name: {"transport": "stdio", "command": "uv"},
                     }
                 }
             )
@@ -147,7 +193,7 @@ class TestMCPClientConfig:
             MCPClientConfig.model_validate(
                 {
                     "mcpServers": {
-                        "knowledge": {"command": "uv"},
+                        "knowledge": {"transport": "stdio", "command": "uv"},
                     },
                     "unknown": "value",
                 }
@@ -161,7 +207,7 @@ class TestMCPClientConfigAliases:
         config = MCPClientConfig.model_validate(
             {
                 "mcpServers": {
-                    "knowledge": {"command": "uv"},
+                    "knowledge": {"transport": "stdio", "command": "uv"},
                 }
             }
         )
@@ -172,7 +218,7 @@ class TestMCPClientConfigAliases:
         config = MCPClientConfig.model_validate(
             {
                 "mcp_servers": {
-                    "knowledge": {"command": "uv"},
+                    "knowledge": {"transport": "stdio", "command": "uv"},
                 }
             }
         )
@@ -182,7 +228,7 @@ class TestMCPClientConfigAliases:
     def test_dumps_using_json_alias(self) -> None:
         config = MCPClientConfig(
             mcp_servers={
-                "knowledge": MCPServerConfig(command="uv"),
+                "knowledge": StdioServerConfig(transport="stdio", command="uv"),
             }
         )
 
@@ -196,8 +242,8 @@ class TestMCPServerConfigDefaults:
     """Tests for default value isolation."""
 
     def test_default_args_are_independent_between_instances(self) -> None:
-        first = MCPServerConfig(command="uv")
-        second = MCPServerConfig(command="python")
+        first = StdioServerConfig(transport="stdio", command="uv")
+        second = StdioServerConfig(transport="stdio", command="python")
 
         first.args.append("run")
 

@@ -17,6 +17,7 @@ class TestLoadClientConfig:
         config_data = {
             "mcpServers": {
                 "knowledge": {
+                    "transport": "stdio",
                     "command": "uv",
                     "args": [
                         "run",
@@ -26,6 +27,7 @@ class TestLoadClientConfig:
                     ],
                 },
                 "operations": {
+                    "transport": "stdio",
                     "command": "uv",
                     "args": [
                         "run",

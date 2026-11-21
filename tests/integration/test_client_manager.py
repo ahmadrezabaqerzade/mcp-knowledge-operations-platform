@@ -4,7 +4,7 @@ from mcp_mastery.client.loader import load_client_config
 from mcp_mastery.client.manager import MCPConnectionManager
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CONFIG_PATH = PROJECT_ROOT / "config" / "mcp_servers.json"
+CONFIG_PATH = PROJECT_ROOT / "config" / "mcp_servers.stdio.json"
 
 
 async def test_client_manager_connects_to_both_servers() -> None:
