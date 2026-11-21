@@ -1,16 +1,17 @@
 from pathlib import Path
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, field_validator
 
 
-class MCPServerConfig(BaseModel):
+class StdioServerConfig(BaseModel):
     """Configuration for an individual MCP server."""
 
     model_config = ConfigDict(
         strict=True,
         extra="forbid",
     )
-
+    transport: Literal["stdio"]
     command: str
     args: list[str] = Field(default_factory=list)
     env: dict[str, str] | None = None
@@ -36,6 +37,20 @@ class MCPServerConfig(BaseModel):
             raise ValueError("args must not contain empty strings.")
 
         return value
+
+
+class HttpServerConfig(BaseModel):
+    """Configuration for an HTTP MCP server."""
+
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    transport: Literal["http"]
+    url: AnyHttpUrl
+
+
+MCPServerConfig = Annotated[
+    StdioServerConfig | HttpServerConfig, Field(discriminator="transport")
+]
 
 
 class MCPClientConfig(BaseModel):

@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "knowledge": {
+      "transport": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "mcp_mastery.knowledge_server.server"
+      ]
+    },
+    "operations": {
+      "transport": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "python",
+        "-m",
+        "mcp_mastery.operations_server.server"
+      ]
+    }
+  }
+}
+

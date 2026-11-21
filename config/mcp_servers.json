@@ -1,22 +1,12 @@
 {
   "mcpServers": {
     "knowledge": {
-      "command": "uv",
-      "args": [
-        "run",
-        "python",
-        "-m",
-        "mcp_mastery.knowledge_server.server"
-      ]
+      "transport": "http",
+      "url": "http://127.0.0.1:8001/mcp"
     },
     "operations": {
-      "command": "uv",
-      "args": [
-        "run",
-        "python",
-        "-m",
-        "mcp_mastery.operations_server.server"
-      ]
+      "transport": "http",
+      "url": "http://127.0.0.1:8002/mcp"
     }
   }
 }

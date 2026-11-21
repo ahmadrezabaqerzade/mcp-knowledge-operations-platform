@@ -1,9 +1,13 @@
 from contextlib import AsyncExitStack
 
 from fastmcp import Client
-from fastmcp.client.transports import StdioTransport
+from fastmcp.client.transports import StdioTransport, StreamableHttpTransport
 
-from mcp_mastery.client.config import MCPClientConfig
+from mcp_mastery.client.config import (
+    HttpServerConfig,
+    MCPClientConfig,
+    StdioServerConfig,
+)
 
 
 class MCPConnectionManager:
@@ -13,6 +17,27 @@ class MCPConnectionManager:
         self._config = config
         self._clients: dict[str, Client] = {}
         self._exit_stack: AsyncExitStack | None = None
+
+    def _create_transport(
+        self, server_config: StdioServerConfig | HttpServerConfig
+    ) -> StdioTransport | StreamableHttpTransport:
+        if isinstance(server_config, StdioServerConfig):
+            return StdioTransport(
+                command=server_config.command,
+                args=server_config.args,
+                env=server_config.env,
+                cwd=(str(server_config.cwd) if server_config.cwd is not None else None),
+                keep_alive=(
+                    server_config.keep_alive
+                    if server_config.keep_alive is not None
+                    else False
+                ),
+            )
+
+        if isinstance(server_config, HttpServerConfig):
+            return StreamableHttpTransport(url=str(server_config.url))
+
+        raise TypeError(f"Unsupported server config: {type(server_config).__name__}")
 
     async def connect(self) -> None:
         """Connect to all configured MCP servers."""
@@ -24,22 +49,7 @@ class MCPConnectionManager:
 
         try:
             for name, server_config in self._config.mcp_servers.items():
-                transport = StdioTransport(
-                    command=server_config.command,
-                    args=server_config.args,
-                    env=server_config.env,
-                    cwd=(
-                        str(server_config.cwd)
-                        if server_config.cwd is not None
-                        else None
-                    ),
-                    keep_alive=(
-                        server_config.keep_alive
-                        if server_config.keep_alive is not None
-                        else False
-                    ),
-                )
-
+                transport = self._create_transport(server_config)
                 client = Client(transport)
 
                 await exit_stack.enter_async_context(client)
