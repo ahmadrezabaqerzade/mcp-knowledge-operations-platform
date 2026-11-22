@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     )
 
     mcp_workspace: Path
+
+    # LLM Config
+    groq_model_name: str = "openai/gpt-oss-120b"
+    groq_api_key: SecretStr
+    temperature: float = 0.0
 
     @field_validator("mcp_workspace")
     @classmethod
