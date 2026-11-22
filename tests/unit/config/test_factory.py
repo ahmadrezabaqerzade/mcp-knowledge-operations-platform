@@ -6,8 +6,10 @@ from mcp_mastery.config.settings import Settings
 
 
 @pytest.fixture(autouse=True)
-def clear_settings_cache():
-    """Clear settings cache before and after each test."""
+def configure_settings(monkeypatch):
+    """Configure environment and clear settings cache."""
+
+    monkeypatch.setenv("GROQ_API_KEY", "test-api-key")
 
     get_settings.cache_clear()
     yield
@@ -80,3 +82,40 @@ def test_settings_expands_home_directory(tmp_path, monkeypatch):
     settings = get_settings()
 
     assert settings.mcp_workspace == workspace.resolve()
+
+
+def test_settings_default_groq_model_name(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    settings = Settings(
+        mcp_workspace=workspace,
+        groq_api_key="test-api-key",
+    )
+
+    assert settings.groq_model_name == "openai/gpt-oss-120b"
+
+
+def test_settings_default_temperature(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    settings = Settings(
+        mcp_workspace=workspace,
+        groq_api_key="test-api-key",
+    )
+
+    assert settings.temperature == 0.0
+
+
+def test_settings_groq_api_key_is_secret(tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+
+    settings = Settings(
+        mcp_workspace=workspace,
+        groq_api_key="test-api-key",
+    )
+
+    assert settings.groq_api_key.get_secret_value() == "test-api-key"
+    assert str(settings.groq_api_key) == "**********"
