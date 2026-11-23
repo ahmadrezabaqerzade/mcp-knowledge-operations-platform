@@ -551,3 +551,58 @@ def test_get_server_details_raises_for_unknown_server(service, manager):
 def test_get_server_details_raises_when_not_initialized(service):
     with pytest.raises(RuntimeError, match="not initialized"):
         service.get_server_details("knowledge")
+
+
+@pytest.mark.asyncio
+async def test_call_tool_returns_tool_result(service, manager):
+    result = MagicMock()
+    arguments = {"expression": "10 + 20"}
+
+    client = MagicMock()
+    client.call_tool = AsyncMock(return_value=result)
+
+    service._manager = manager
+    manager.get_client.return_value = client
+
+    response = await service.call_tool(
+        server_name="operations",
+        tool_name="calculate",
+        arguments=arguments,
+    )
+
+    manager.get_client.assert_called_once_with("operations")
+    client.call_tool.assert_awaited_once_with(
+        name="calculate",
+        arguments=arguments,
+    )
+    assert response is result
+
+
+@pytest.mark.asyncio
+async def test_call_tool_raises_when_not_initialized(service):
+    with pytest.raises(RuntimeError, match="not initialized"):
+        await service.call_tool(
+            server_name="operations",
+            tool_name="calculate",
+        )
+
+
+@pytest.mark.asyncio
+async def test_call_tool_propagates_client_error(service, manager):
+    client = MagicMock()
+    client.call_tool = AsyncMock(side_effect=RuntimeError("Tool execution failed"))
+
+    service._manager = manager
+    manager.get_client.return_value = client
+
+    with pytest.raises(RuntimeError, match="Tool execution failed"):
+        await service.call_tool(
+            server_name="operations",
+            tool_name="calculate",
+            arguments={"expression": "10 + 20"},
+        )
+
+    client.call_tool.assert_awaited_once_with(
+        name="calculate",
+        arguments={"expression": "10 + 20"},
+    )
