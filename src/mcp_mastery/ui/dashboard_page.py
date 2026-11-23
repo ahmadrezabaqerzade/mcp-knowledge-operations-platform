@@ -1,4 +1,6 @@
 import asyncio
+import json
+from typing import Any
 
 import streamlit as st
 
@@ -17,7 +19,7 @@ async def get_server_details() -> list[dict]:
 
         for server_name in service.list_servers():
             details = service.get_server_details(server_name)
-            servers.append(details.model_dump())
+            servers.append(details.model_dump(mode="json"))
 
         return servers
 
@@ -39,14 +41,141 @@ async def get_server_inventory(server_name: str) -> dict[str, list[dict]]:
         prompts = await service.list_prompts(server_name)
 
         return {
-            "tools": [item.model_dump(mode="json") for item in tools],
-            "resources": [item.model_dump(mode="json") for item in resources],
-            "resource_templates": [item.model_dump(mode="json") for item in templates],
-            "prompts": [item.model_dump(mode="json") for item in prompts],
+            "tools": [item.model_dump(mode="json", by_alias=True) for item in tools],
+            "resources": [
+                item.model_dump(mode="json", by_alias=True) for item in resources
+            ],
+            "resource_templates": [
+                item.model_dump(mode="json", by_alias=True) for item in templates
+            ],
+            "prompts": [
+                item.model_dump(mode="json", by_alias=True) for item in prompts
+            ],
         }
 
     finally:
         await service.close()
+
+
+async def execute_server_tool(
+    server_name: str,
+    tool_name: str,
+    arguments: dict[str, Any],
+) -> dict:
+    """Execute an MCP tool and return its result."""
+
+    service = DashboardService()
+
+    try:
+        await service.initialize()
+
+        result = await service.call_tool(
+            server_name=server_name,
+            tool_name=tool_name,
+            arguments=arguments,
+        )
+
+        return {
+            "content": [
+                item.model_dump(mode="json")
+                if hasattr(item, "model_dump")
+                else str(item)
+                for item in result.content
+            ],
+            "isError": result.is_error,
+            "structuredContent": result.structured_content,
+        }
+
+    finally:
+        await service.close()
+
+
+def render_tool_arguments(
+    input_schema: dict,
+    server_name: str,
+    tool_name: str,
+) -> dict[str, Any] | None:
+    """Render input widgets dynamically from a tool's JSON Schema."""
+
+    properties = input_schema.get("properties", {})
+    required_fields = input_schema.get("required", [])
+
+    arguments: dict[str, Any] = {}
+
+    for field_name, field_schema in properties.items():
+        field_type = field_schema.get("type")
+        field_label = field_name.replace("_", " ").title()
+        default_value = field_schema.get("default")
+
+        widget_key = f"argument_{server_name}_{tool_name}_{field_name}"
+
+        if field_type == "string":
+            value = st.text_input(
+                label=field_label,
+                value=default_value if default_value is not None else "",
+                key=widget_key,
+            )
+
+            if value or field_name in required_fields:
+                arguments[field_name] = value
+
+        elif field_type in {"integer", "number"}:
+            value = st.number_input(
+                label=field_label,
+                value=default_value if default_value is not None else 0,
+                step=1 if field_type == "integer" else 0.1,
+                key=widget_key,
+            )
+
+            arguments[field_name] = (
+                int(value) if field_type == "integer" else float(value)
+            )
+
+        elif field_type == "boolean":
+            arguments[field_name] = st.checkbox(
+                label=field_label,
+                value=bool(default_value) if default_value is not None else False,
+                key=widget_key,
+            )
+
+        elif field_type in {"array", "object"}:
+            raw_value = st.text_area(
+                label=field_label,
+                value=(json.dumps(default_value) if default_value is not None else ""),
+                help="Enter a valid JSON value.",
+                key=widget_key,
+            )
+
+            if raw_value.strip():
+                try:
+                    arguments[field_name] = json.loads(raw_value)
+                except json.JSONDecodeError as exc:
+                    st.error(f"Invalid JSON for {field_label}: {exc}")
+                    return None
+
+            elif field_name in required_fields:
+                st.warning(f"{field_label} is required.")
+                return None
+
+        else:
+            st.warning(f"Unsupported input type: {field_type}")
+            return None
+
+    missing_fields = [
+        field_name
+        for field_name in required_fields
+        if field_name not in arguments
+        or arguments[field_name] is None
+        or (
+            isinstance(arguments[field_name], str) and not arguments[field_name].strip()
+        )
+    ]
+
+    if missing_fields:
+        st.warning("Please provide the required fields: " + ", ".join(missing_fields))
+        return None
+
+    return arguments
 
 
 def render_dashboard_page() -> None:
@@ -142,9 +271,75 @@ def render_dashboard_page() -> None:
         st.subheader(f"Tools ({len(inventory['tools'])})")
 
         if inventory["tools"]:
+            tool_names = [tool["name"] for tool in inventory["tools"]]
+
+            selected_tool_name = st.selectbox(
+                "Select a tool",
+                options=tool_names,
+                key=f"selected_tool_{selected_server}",
+            )
+
+            selected_tool = next(
+                tool
+                for tool in inventory["tools"]
+                if tool["name"] == selected_tool_name
+            )
+
+            st.write(
+                selected_tool.get(
+                    "description",
+                    "No description available.",
+                )
+            )
+
+            input_schema = selected_tool.get("inputSchema", {})
+
+            with st.expander("Tool Schema"):
+                st.json(input_schema)
+
+            st.divider()
+
+            st.subheader("Execute Tool")
+
+            with st.form(key=f"tool_form_{selected_server}_{selected_tool_name}"):
+                arguments = render_tool_arguments(
+                    input_schema=input_schema,
+                    server_name=selected_server,
+                    tool_name=selected_tool_name,
+                )
+
+                submitted = st.form_submit_button(
+                    "Execute Tool",
+                    type="primary",
+                )
+
+            if submitted and arguments is not None:
+                try:
+                    with st.spinner(f"Executing {selected_tool_name}..."):
+                        result = asyncio.run(
+                            execute_server_tool(
+                                server_name=selected_server,
+                                tool_name=selected_tool_name,
+                                arguments=arguments,
+                            )
+                        )
+
+                    st.success("Tool executed successfully.")
+
+                    st.subheader("Tool Result")
+                    st.json(result)
+
+                except Exception as exc:
+                    st.error(f"Tool execution failed: {exc}")
+
+            st.divider()
+
+            st.subheader("All Available Tools")
+
             for index, tool in enumerate(inventory["tools"], start=1):
                 with st.expander(f"{index}. {tool.get('name', 'Unnamed tool')}"):
                     st.json(tool)
+
         else:
             st.info("This server does not expose any tools.")
 

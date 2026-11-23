@@ -1,6 +1,7 @@
 from pathlib import Path
+from typing import Any
 
-from mcp.types import Prompt, Resource, ResourceTemplate, Tool
+from mcp.types import CallToolResult, Prompt, Resource, ResourceTemplate, Tool
 
 from mcp_mastery.application.schemas import ServerDetails
 from mcp_mastery.client.config import (
@@ -79,6 +80,20 @@ class DashboardService:
 
         client = self._manager.get_client(server_name)
         return await client.list_tools()
+
+    async def call_tool(
+        self,
+        server_name: str,
+        tool_name: str,
+        arguments: dict[str, Any] | None = None,
+    ) -> CallToolResult:
+        """Execute a tool exposed by a connected MCP server."""
+        if self._manager is None:
+            raise RuntimeError("DashboardService is not initialized.")
+
+        client = self._manager.get_client(server_name)
+
+        return await client.call_tool(name=tool_name, arguments=arguments)
 
     async def list_resources(self, server_name: str) -> list[Resource]:
         """List resources exposed by a connected MCP server."""
