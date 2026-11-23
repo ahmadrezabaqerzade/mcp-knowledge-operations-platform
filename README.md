@@ -13,6 +13,22 @@ The platform is organized around two MCP servers and an MCP client layer:
 - **MCP Client** — connects to configured servers, discovers their capabilities, and invokes tools or retrieves MCP data.
 - **Streamlit Application** — provides a chat interface and an interactive dashboard for inspecting servers and executing tools.
 
+
+## Screenshots
+
+### Chat Assistant
+
+![Screenshot of the Streamlit chat assistant interacting with the MCP platform.](docs/images/chat-assistant.png)
+
+### MCP Dashboard
+
+![Screenshot of the MCP dashboard displaying configured servers and their capabilities.](docs/images/mcp-dashboard.png)
+
+### Tool Execution
+
+![Screenshot of the dashboard dynamically collecting tool arguments and displaying execution results.](docs/images/tool-execution.png)
+
+
 ## Architecture
 
 ```text
